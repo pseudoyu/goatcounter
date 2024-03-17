@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  goatcounter:
+    image: goatcounter
+    ports:
+      - 8082:8080
+    environment:
+      - PORT=8080
+      - GOATCOUNTER_DB=sqlite3://data/goatcounter.sqlite3
+    volumes:
+      - ./data:/data
+    restart: unless-stopped

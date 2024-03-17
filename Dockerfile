@@ -15,7 +15,6 @@ ENV CGO_ENABLED=1
 
 RUN go build -ldflags="-X zgo.at/goatcounter/v2.Version=$(git log -n1 --format='%h_%cI')" ./cmd/goatcounter
 
-FROM gcr.io/distroless/base
+FROM debian:bullseye-slim
 COPY --from=build /app/goatcounter /goatcounter
-EXPOSE 80 443
-CMD ["/goatcounter", "serve"]
+ENTRYPOINT ./goatcounter serve -listen "0.0.0.0:$PORT" -automigrate -tls none -db "$GOATCOUNTER_DB"
