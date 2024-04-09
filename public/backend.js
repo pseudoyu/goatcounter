@@ -16,7 +16,7 @@
 		if (!USER_SETTINGS.language)
 			USER_SETTINGS.language = 'en'
 
-		;[report_errors, bind_tooltip, bind_confirm, translate_calendar].forEach((f) => f.call())
+		;[report_errors, bind_tooltip, bind_confirm, translate_calendar, onetime].forEach((f) => f.call())
 		;[page_dashboard, page_settings_main, page_user_pref, page_user_dashboard, page_bosmang]
 			.forEach((f) => document.body.id.match(new RegExp('^' + f.name.replace(/_/g, '-'))) && f.call())
 	})
@@ -26,6 +26,8 @@
 		window.onerror = on_error
 		$(document).on('ajaxError', function(e, xhr, settings, err) {
 			if (settings.url === '/jserr')  // Just in case, otherwise we'll be stuck.
+				return
+			if (settings.url === '/load-widget')
 				return
 			var msg = T("error/load-url", {url: settings.url, error: err})
 			console.error(msg)
@@ -37,14 +39,14 @@
 	// Report an error.
 	var on_error = function(msg, url, line, column, err) {
 		// Don't log useless errors in Safari: https://bugs.webkit.org/show_bug.cgi?id=132945
-		if (msg === 'Script error.' && navigator.vendor && navigator.vendor.indexOf('Apple') > -1)
+		if (msg === 'Script error.')
 			return
-
 		// I don't what kind of shitty thing is spamming me with this, but I've
-		// gotten a lot of them and I'm getting tired of it.
-		if (msg.indexOf("document.getElementsByTagName('video')[0].webkitExitFullScreen") !== -1)
+		// gotten a lot of these and I'm getting tired of it.
+		if (msg.indexOf("document.getElementsByTagName('video')[0].webkitExitFullScreen") !== -1 ||
+			msg.match(/Cannot redefine property: (googletag|ethereum)/) !== null
+		)
 			return
-
 		// Don't log errors from extensions.
 		if (url.startsWith('chrome-extension://'))
 			return
@@ -93,6 +95,26 @@
 
 			t.attr('data-title', title).removeAttr('title')
 			display(e, t)
+		})
+	}
+
+	// One-time messages.
+	let onetime = function() {
+		$('.onetime').each((_, elem) => {
+			elem = $(elem)
+			let n = elem.attr('class').split(' ').filter((v) => v.match(/^onetime-/))[0]
+			if (localStorage.getItem(n) ||
+				// People who don't have a dark theme won't see any change, so
+				// don't bother showing it to then.
+				(n === 'onetime-dark' && !window.matchMedia("(prefers-color-scheme: dark)").matches))
+				return
+
+			elem.css('display', 'block')
+			elem.find('.close').on('click', (e) => {
+				e.preventDefault()
+				elem.css('display', 'none')
+				localStorage.setItem(n, '1')
+			})
 		})
 	}
 

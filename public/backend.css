@@ -80,6 +80,7 @@ input.red { border: 1px solid var(--input-error-border) !important; }
 .flash pre { text-align: left; margin: 0 auto; display: inline-block; }
 .flash-i   { background-color: var(--info-bg); border-color: var(--info-border); }
 .flash-e   { background-color: var(--error-bg); border-color: var(--error-border); }
+.onetime   { display:none; }
 
 .screen-reader { display: none; }
 .hide          { display: none; }
@@ -227,6 +228,10 @@ tr.target .chart-left { display: block; }
                           background-color: var(--tooltip-bg); color: var(--tooltip-text);
                           border: 1px solid var(--tooltip-border); box-shadow: 0 0 2px var(--tooltip-shadow); }
 #dash-saved-views >span:hover { opacity: .5; }
+
+/* Tweak icon for narrow screens; fixes #725 */
+@media (max-width: 89rem)   { #dash-saved-views { right:-.5rem; top:-.2rem; } }
+@media (max-width: 87.5rem) { #dash-saved-views { right:0; top:-.6rem; } }
 
 @media (max-width: 36.5rem) {
     #dash-move span           { display: block; }
