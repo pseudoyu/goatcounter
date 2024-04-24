@@ -27,6 +27,7 @@ var reserved = []string{
 	"admin", "ns1", "ns2", "m", "mobile", "api",
 	"dev", "test", "beta", "new", "staging", "debug", "pprof",
 	"chat", "example", "yoursite", "test", "sql", "license",
+	"stat", "stats",
 }
 
 var statTables = []string{"hit_stats", "system_stats", "browser_stats",
@@ -48,7 +49,8 @@ type Site struct {
 	// used for goatcounter.com and not when self-hosting.
 	Code string `db:"code" json:"code"`
 
-	// Site domain for linking (www.arp242.net).
+	// Site domain for linking (www.arp242.net). Note this can be a full URL and
+	// is a bit misnamed.
 	LinkDomain string `db:"link_domain" json:"link_domain"`
 
 	Settings     SiteSettings `db:"settings" json:"setttings"`
@@ -100,6 +102,8 @@ func (s *Site) Defaults(ctx context.Context) {
 	if s.FirstHitAt.IsZero() {
 		s.FirstHitAt = n
 	}
+
+	s.LinkDomain = strings.TrimRight(s.LinkDomain, "/")
 
 	s.Settings.Defaults(ctx)
 	s.UserDefaults.Defaults(ctx)
@@ -323,35 +327,53 @@ func (s *Site) Delete(ctx context.Context, deleteChildren bool) error {
 		return errors.New("ID == 0")
 	}
 
-	if !deleteChildren {
-		var n int
-		err := zdb.Get(ctx, &n, `select count(*) from sites where parent = ?`, s.ID)
+	return zdb.TX(ctx, func(ctx context.Context) error {
+		if !deleteChildren {
+			var n int
+			err := zdb.Get(ctx, &n, `select site_id from sites where parent = ? order by site_id limit 1`, s.ID)
+			if err != nil && !zdb.ErrNoRows(err) {
+				return errors.Wrap(err, "Site.Delete")
+			}
+			// Roll over the "parent" to the next site.
+			if n > 0 {
+				err = zdb.Exec(ctx, `update sites set parent = ? where parent = ?`, n, s.ID)
+				if err != nil {
+					return errors.Wrap(err, "Site.Delete")
+				}
+				err = zdb.Exec(ctx, `update sites set parent = null where site_id = ?`, n)
+				if err != nil {
+					return errors.Wrap(err, "Site.Delete")
+				}
+				err = zdb.Exec(ctx, `update users set site_id = ? where site_id = ?`, n, s.ID)
+				if err != nil {
+					return errors.Wrap(err, "Site.Delete")
+				}
+			}
+
+			// Just clear the entire sites cache; this operation is rare enough
+			// that it doesn't really matter.
+			cacheSites(ctx).Flush()
+		}
+
+		// Update the site code so people can delete a site and then immediately
+		// re-create a new site with the same name.
+		q := `update sites set state=$1, updated_at=$2, code=random() where site_id=$3 or parent=$3`
+		if zdb.SQLDialect(ctx) == zdb.DialectPostgreSQL {
+			q = `update sites set state=$1, updated_at=$2, code=gen_random_uuid() where site_id=$3 or parent=$3`
+		}
+		t := ztime.Now()
+		err := zdb.Exec(ctx, q, StateDeleted, t, s.ID)
 		if err != nil {
 			return errors.Wrap(err, "Site.Delete")
 		}
-		if n > 0 {
-			return fmt.Errorf("Site.Delete: site %d has %d linked sites", s.ID, n)
-		}
-	}
 
-	// Update the site code so people can delete a site and then immediatly
-	// re-create a new site with the same name.
-	q := `update sites set state=$1, updated_at=$2, code=random() where site_id=$3 or parent=$3`
-	if zdb.SQLDialect(ctx) == zdb.DialectPostgreSQL {
-		q = `update sites set state=$1, updated_at=$2, code=gen_random_uuid() where site_id=$3 or parent=$3`
-	}
-	t := ztime.Now()
-	err := zdb.Exec(ctx, q, StateDeleted, t, s.ID)
-	if err != nil {
-		return errors.Wrap(err, "Site.Delete")
-	}
+		s.ClearCache(ctx, true)
 
-	s.ClearCache(ctx, true)
-
-	s.ID = 0
-	s.UpdatedAt = &t
-	s.State = StateDeleted
-	return nil
+		s.ID = 0
+		s.UpdatedAt = &t
+		s.State = StateDeleted
+		return nil
+	})
 }
 
 func (s Site) Undelete(ctx context.Context, id int64) error {

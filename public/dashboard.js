@@ -246,14 +246,15 @@
 
 		// Change to type="date" on mobile as that gives a better experience.
 		//
-		// Not done on *any* desktop OS as styling these fields with basic stuff
+		// Not done on any desktop OS as styling these fields with basic stuff
 		// (like setting a cross-browser consistent height) is really hard and
-		// fraught with all sort of idiocy.
-		// They also don't really look all that great. Especially the Firefox
-		// one looks pretty fucked.
-		if (is_mobile()) {
+		// fraught with all sort of idiocy. They also don't really look all that
+		// great and the UX is frankly bad.
+		//
+		// Also do this if Pikaday is undefined; this should never happen, but
+		// I've seen some errors for this.
+		if (is_mobile() || !window.Pikaday) {
 			return $('#period-start, #period-end').
-				attr('type', 'date').
 				css('width', 'auto').  // Make sure there's room for UI chrome.
 				on('change', () => { $('#dash-form').trigger('submit') })
 		}
@@ -272,6 +273,7 @@
 				months:        months,
 			},
 		}
+		$('#period-start, #period-end').attr('type', 'text')
 		new Pikaday($('#period-start')[0], opts)
 		new Pikaday($('#period-end')[0], opts)
 	}
@@ -616,9 +618,17 @@
 				chart.find('div[data-key]').each((_, e) => {
 					if (e.dataset.key.substr(0, 1) === '(') // Skip "(unknown)"
 						return
-					let n = names.of(e.dataset.key)
-					if (n)
-						$(e).find('.col-name .bar-c .cutoff').text(n)
+					try {
+						let n = names.of(e.dataset.key)
+						if (n)
+							$(e).find('.col-name .bar-c .cutoff').text(n)
+					} catch (exc) {
+						// This errors out with a RangeError sometimes, but
+						// without details and can't reproduce. Add some more
+						// info to see what's going on.
+						exc.message = `${exc.message} for type=${w.n}; key=${e.dataset.key}; content=${$(e).find('.col-name .bar-c .cutoff').text()}`
+						throw exc
+					}
 				})
 			}
 
