@@ -255,6 +255,7 @@
 		// I've seen some errors for this.
 		if (is_mobile() || !window.Pikaday) {
 			return $('#period-start, #period-end').
+				attr('type', 'date').
 				css('width', 'auto').  // Make sure there's room for UI chrome.
 				on('change', () => { $('#dash-form').trigger('submit') })
 		}
@@ -543,12 +544,12 @@
 				visits = daily ? day.daily : day.hourly[i%24],
 				views  = daily ? day.daily : day.hourly[i%24]
 
-			let title = ''
-			let future = futureFrom && x >= futureFrom - 1
+			let title = '',
+				future = futureFrom && x >= futureFrom - 1
 			if (daily)
-				title = `${format_date(day.day)}`
+				title = `${format_date(day.day, true)}`
 			else
-				title = `${format_date(day.day)} ${un24(start)} – ${un24(end)}`
+				title = `${format_date(day.day, true)} ${un24(start)} – ${un24(end)}`
 			if (future)
 				title += '; ' + T('dashboard/future')
 			if (!future && !USER_SETTINGS.fewer_numbers) {
