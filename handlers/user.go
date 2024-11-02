@@ -170,7 +170,7 @@ func (h user) requestLogin(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	if user.Password == nil || len(user.Password) == 0 {
+	if len(user.Password) == 0 {
 		zhttp.FlashError(w, T(r.Context(), "error/login-no-password|There is no password set for %(email); please reset it", args.Email))
 		return zhttp.SeeOther(w, "/user/forgot?email="+url.QueryEscape(args.Email))
 	}
@@ -381,9 +381,7 @@ func (h user) enableTOTP(w http.ResponseWriter, r *http.Request) error {
 	// Check a 30 second window on either side of the current time as well. It's
 	// common for clocks to be slightly out of sync and this prevents most errors
 	// and is what the spec recommends.
-	if tokGen(0, nil) != int32(tokInt) &&
-		tokGen(-1, nil) != int32(tokInt) &&
-		tokGen(1, nil) != int32(tokInt) {
+	if tokGen(0, nil) != int32(tokInt) && tokGen(-1, nil) != int32(tokInt) && tokGen(1, nil) != int32(tokInt) {
 		zhttp.FlashError(w, mfaError)
 		return zhttp.SeeOther(w, "/user/auth")
 	}
@@ -538,7 +536,7 @@ func (h user) verify(w http.ResponseWriter, r *http.Request) error {
 	return zhttp.SeeOther(w, "/")
 }
 
-// Make sure to use the currect cookie, since both "custom.example.com" and
+// Make sure to use the correct cookie, since both "custom.example.com" and
 // "example.goatcounter.com" will work if you're using a custom domain.
 func cookieDomain(site *goatcounter.Site, r *http.Request) string {
 	if r.Host == site.Domain(r.Context()) {

@@ -65,7 +65,7 @@ var SQLiteHook = func(c *sqlite3.SQLiteConn) error {
 }
 
 // TODO: Move to zdb
-func interval(ctx context.Context, days int) string {
+func Interval(ctx context.Context, days int) string {
 	if zdb.SQLDialect(ctx) == zdb.DialectPostgreSQL {
 		return fmt.Sprintf(" now() - interval '%d days' ", days)
 	}
@@ -110,7 +110,7 @@ func NewBufferKey(ctx context.Context) (string, error) {
 			return err
 		}
 
-		err = zdb.Exec(ctx, `insert into store (key, value) values ('buffer-secret', :s)`, zdb.P{"s": secret})
+		err = zdb.Exec(ctx, `insert into store (key, value) values ('buffer-secret', :s)`, map[string]any{"s": secret})
 		return err
 	})
 	if err != nil {

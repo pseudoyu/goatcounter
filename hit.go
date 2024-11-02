@@ -52,8 +52,8 @@ type Hit struct {
 	RemoteAddr    string `db:"-" json:"-"`
 	UserSessionID string `db:"-" json:"-"`
 
-	// Don't process in memstore; for merging paths.
-	noProcess bool `db:"-" json:"-"`
+	NoStore   bool `db:"-" json:"-"` // Don't store in hits (still store in stats).
+	noProcess bool `db:"-" json:"-"` // Don't process in memstore; for merging paths.
 }
 
 func (h *Hit) Ignore() bool {
@@ -365,7 +365,7 @@ func (h *Hits) TestList(ctx context.Context, siteOnly bool) error {
 		left join sizes using (size_id)
 		{{:site_only where hits.site_id = :site}}
 		order by hit_id asc`,
-		zdb.P{
+		map[string]any{
 			"site":      MustGetSite(ctx).ID,
 			"site_only": siteOnly,
 		})
